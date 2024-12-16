@@ -209,6 +209,35 @@ function deselectAll() {
   if (selectedObject) deselectObject(selectedObject);
 }
 
+// Handle Keyboard Input for Movement
+window.addEventListener("keydown", (event: KeyboardEvent) => {
+    if (!selectedObject) return;
+    const step = 0.1; // Movement step size
+    const rotateStep = (Math.PI / 180) * 5; // Rotate by 5 degrees per key press
+    switch (event.key.toLowerCase()) {
+      case "w":
+        selectedObject.translateZ(-step); // Move forward relative to rotation
+        break;
+      case "s":
+        selectedObject.translateZ(step); // Move backward relative to rotation
+        break;
+      case "a":
+        selectedObject.translateX(-step); // Move left relative to rotation
+        break;
+      case "d":
+        selectedObject.translateX(step); // Move right relative to rotation
+        break;
+      case "arrowleft":
+        selectedObject.rotation.y += rotateStep; // Rotate left
+        break;
+      case "arrowright":
+        selectedObject.rotation.y -= rotateStep; // Rotate right
+        break;
+      default:
+        break;
+    }
+  });
+
 // Render Loop
 function animate() {
   requestAnimationFrame(animate);
