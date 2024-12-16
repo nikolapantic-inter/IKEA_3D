@@ -13,16 +13,20 @@ import {
   Group,
   Raycaster,
   Vector2,
+  Vector3,
+  Audio,
+  AudioListener,
+  AudioLoader,
 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
-// Initialize Scene
+// Initialize scene
 const scene = new Scene();
 scene.background = new Color(0xdddddd);
 
-// Initialize Camera
+// Initialize camera
 const camera = new PerspectiveCamera(
   40,
   window.innerWidth / window.innerHeight,
@@ -31,12 +35,44 @@ const camera = new PerspectiveCamera(
 );
 camera.position.set(0, 1.0, 4.5);
 
-// Initialize Renderer
+// Initialize renderer
 const renderer = new WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.toneMapping = ACESFilmicToneMapping; // Apply tone mapping
 renderer.toneMappingExposure = 0.5;
 document.body.appendChild(renderer.domElement);
+
+// Create an AudioListener and add it to the camera
+const listener = new AudioListener();
+camera.add(listener);
+const sound = new Audio(listener);
+
+// Load the audio file and set it as the audio source
+const audioLoader = new AudioLoader();
+audioLoader.load(
+  "/sounds/jazz.mp3",
+  (buffer) => {
+    sound.setBuffer(buffer);
+    sound.setLoop(true);
+    sound.setVolume(0.4);
+  },
+  undefined,
+  // onError callback
+  function (err) {
+    console.log("Error:", err);
+  }
+);
+
+// Audio starts after user interaction
+
+const playAudio = () => {
+  if (!sound.isPlaying) {
+    sound.play();
+    console.log("Audio started");
+  }
+};
+
+document.body.addEventListener("click", playAudio, { once: true });
 
 // Initialize OrbitControls
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -47,7 +83,7 @@ controls.target.set(0, 1, 0);
 controls.minPolarAngle = Math.PI / 2.4;
 controls.maxPolarAngle = Math.PI / 2.0;
 
-//  Window Resize
+//  Window resize
 window.addEventListener("resize", () => {
   camera.aspect = window.innerWidth / window.innerHeight;
   camera.updateProjectionMatrix();
@@ -63,18 +99,18 @@ directionalLight.position.set(5, 10, 7.5);
 directionalLight.castShadow = true;
 scene.add(directionalLight);
 
-// Loading Manager
+// Loading manager
 const loadingManager = new LoadingManager();
 loadingManager.onLoad = () => {
   console.log("All assets loaded.");
   animate();
 };
 
-// GLTF and RGBE Loader
+// GLTF and RGBE loader
 const rgbeLoader = new RGBELoader(loadingManager);
 const gltfLoader = new GLTFLoader(loadingManager);
 
-//HDR Lights
+//HDR lights
 rgbeLoader.load("/textures/pine_attic_2k.hdr", (texture) => {
   texture.mapping = EquirectangularReflectionMapping;
   scene.environment = texture;
@@ -86,12 +122,12 @@ let table: Group | null = null;
 let dresser: Group | null = null;
 let background: Group | null = null;
 
-// Map to Original Colors
+// Map to original colors
 const originalColorsMap = new Map<Mesh, Color>();
 const highlightColor = new Color(0x83f52c);
 let selectedObject: Group | null = null;
 
-// Load Chair
+// Load chair
 gltfLoader.load("/models/chair.glb", (gltf) => {
   chair = gltf.scene;
   chair.scale.set(1, 1, 1);
@@ -107,7 +143,7 @@ gltfLoader.load("/models/chair.glb", (gltf) => {
   });
 });
 
-// Load Table
+// Load table
 gltfLoader.load("/models/classic_round_side_table.glb", (gltf) => {
   table = gltf.scene;
   table.scale.set(1, 1, 1);
@@ -139,7 +175,7 @@ gltfLoader.load("/models/ikea.glb", (gltf) => {
   });
 });
 
-// Load Background
+// Load background
 gltfLoader.load("/models/background.glb", (gltf) => {
   background = gltf.scene;
   background.scale.set(1, 1, 1);
@@ -147,11 +183,11 @@ gltfLoader.load("/models/background.glb", (gltf) => {
   scene.add(background);
 });
 
-// Raycaster and Mouse Vector
+// Raycaster and mouse vector
 const raycaster = new Raycaster();
 const mouse = new Vector2();
 
-// Handle Mouse Click
+// Handle mouse click
 window.addEventListener("click", (event: MouseEvent) => {
   mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
   mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
@@ -174,7 +210,7 @@ window.addEventListener("click", (event: MouseEvent) => {
   }
 });
 
-// Selection Functions
+// Selection functions
 function selectObject(object: Group) {
   if (selectedObject === object) {
     deselectObject(object);
@@ -209,32 +245,49 @@ function deselectAll() {
   if (selectedObject) deselectObject(selectedObject);
 }
 
-// Handle Keyboard Input for Movement
+// Move with Keyboard
 window.addEventListener("keydown", (event: KeyboardEvent) => {
     if (!selectedObject) return;
-    const step = 0.1; // Movement step size
-    const rotateStep = (Math.PI / 180) * 5; // Rotate by 5 degrees per key press
+  
+    const step = 0.1; 
+    const rotateStep = (Math.PI / 180) * 5; //5 Radians
+  
+    // Calculate camera forward 
+    const forward = new Vector3();
+    camera.getWorldDirection(forward); 
+    forward.y = 0;
+    forward.normalize();
+  
+    const right = new Vector3();
+    right.crossVectors(forward, camera.up).normalize(); // Right vector
+  
+    // Move selected object based on key press relative to the camera
     switch (event.key.toLowerCase()) {
-      case "w":
-        selectedObject.translateZ(-step); // Move forward relative to rotation
+      case "w": 
+        selectedObject.position.add(forward.multiplyScalar(step));
         break;
-      case "s":
-        selectedObject.translateZ(step); // Move backward relative to rotation
+      case "s": 
+        selectedObject.position.add(forward.multiplyScalar(-step));
         break;
-      case "a":
-        selectedObject.translateX(-step); // Move left relative to rotation
+      case "a": 
+        selectedObject.position.add(right.multiplyScalar(-step));
         break;
-      case "d":
-        selectedObject.translateX(step); // Move right relative to rotation
+      case "d": 
+        selectedObject.position.add(right.multiplyScalar(step));
         break;
-      case "arrowleft":
-        selectedObject.rotation.y += rotateStep; // Rotate left
+      case "arrowleft": 
+        selectedObject.rotation.y -= rotateStep;
         break;
-      case "arrowright":
-        selectedObject.rotation.y -= rotateStep; // Rotate right
+      case "arrowright": 
+        selectedObject.rotation.y += rotateStep;
         break;
       default:
         break;
+    }
+  
+    // Constrain movement to the horizontal plane 
+    if (selectedObject) {
+      selectedObject.position.y = 0;
     }
   });
 
