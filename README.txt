@@ -17,7 +17,7 @@ Display keyboard controls and usage instructions with a help menu.
 Installation
 
 Clone the repository:
-git clone git@github.com:pgaonamu/IKEA_3D.git
+git clone https://github.com/pgaonamu/IKEA_3D.git
 Navigate to the project folder:
 cd yourproject
 Install dependencies:
@@ -72,14 +72,16 @@ Prerequisites
 
 Node.js (v14 or newer)
 A modern web browser (e.g., Chrome or Firefox)
-Scripts
 
+Scripts
+On your root project folder:
 Run locally: npm run dev
 Build for production: npm run build
 Preview production build: npm run preview
-Known Issues
 
+NOTE:
 Ensure the browser supports WebGL; older devices may not display the scene.
+Once you run npm run dev, you can access http://localhost:5178/ (or your respective port) via browser. 
 
 Acknowledgments
 
