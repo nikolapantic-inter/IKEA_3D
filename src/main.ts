@@ -17,6 +17,7 @@ import {
   Audio,
   AudioListener,
   AudioLoader,
+  Euler,
 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -103,6 +104,15 @@ scene.add(directionalLight);
 const loadingManager = new LoadingManager();
 loadingManager.onLoad = () => {
   console.log("All assets loaded.");
+
+  const fadeOverlay = document.getElementById("fade-overlay");
+  if (fadeOverlay) {
+    fadeOverlay.style.opacity = "0";
+    setTimeout(() => {
+      fadeOverlay.style.display = "none";
+    }, 2000);
+  }
+
   animate();
 };
 
@@ -110,18 +120,86 @@ loadingManager.onLoad = () => {
 const rgbeLoader = new RGBELoader(loadingManager);
 const gltfLoader = new GLTFLoader(loadingManager);
 
+// Paths to HDR textures
+const hdrDayPath = "/textures/day.hdr";
+const hdrNightPath = "/textures/night.hdr";
+
+// Current HDR state
+let isDay = true;
+
 //HDR lights
-rgbeLoader.load("/textures/pine_attic_2k.hdr", (texture) => {
-  texture.mapping = EquirectangularReflectionMapping;
-  scene.environment = texture;
-  scene.background = texture;
-});
+const loadHDR = (hdrPath: string) => {
+  rgbeLoader.load(
+    hdrPath,
+    (texture) => {
+      texture.mapping = EquirectangularReflectionMapping;
+      scene.environment = texture;
+      scene.background = texture;
+      console.log(`Loaded HDR: ${hdrPath}`);
+    },
+    undefined,
+    // onError callback
+    function (err) {
+      console.log("Error:", err);
+    }
+  );
+};
+
+// Load HDR
+loadHDR(hdrDayPath);
+
+// Toggle HDR on click
+const hdrToggleButton = document.getElementById("toggle-hdr-btn");
+if (hdrToggleButton) {
+  // Update button color based on state
+  const updateButtonStyle = () => {
+    hdrToggleButton.style.backgroundColor = isDay ? "#0057ad" : "#FFA500";
+    hdrToggleButton.style.color = isDay ? "white" : "black";
+    hdrToggleButton.textContent = isDay ? "🌙" : "☀️";
+    hdrToggleButton.classList.toggle("day", isDay);
+    hdrToggleButton.classList.toggle("night", !isDay);
+  };
+
+  // Init
+  updateButtonStyle();
+
+  hdrToggleButton.addEventListener("click", () => {
+    isDay = !isDay;
+    loadHDR(isDay ? hdrDayPath : hdrNightPath);
+    updateButtonStyle(); // Update on toggle
+  });
+}
 
 let chair: Group | null = null;
 let table: Group | null = null;
 let dresser: Group | null = null;
 let background: Group | null = null;
 
+// Store the initial states of objects
+const initialStates = new Map<
+  Group,
+  { position: Vector3; rotation: Euler; scale: Vector3 }
+>();
+
+// Save initial states
+function saveInitialState(object: Group) {
+  initialStates.set(object, {
+    position: object.position.clone(),
+    rotation: object.rotation.clone(),
+    scale: object.scale.clone(),
+  });
+}
+
+// Reset objects to their initial state
+function resetObject(object: Group) {
+    const initialState = initialStates.get(object);
+    if (initialState) {
+      object.position.copy(initialState.position); 
+      object.rotation.copy(initialState.rotation);
+      object.scale.copy(initialState.scale);      
+    }
+  }
+  
 // Map to original colors
 const originalColorsMap = new Map<Mesh, Color>();
 const highlightColor = new Color(0x83f52c);
@@ -133,6 +211,7 @@ gltfLoader.load("/models/chair.glb", (gltf) => {
   chair.scale.set(1, 1, 1);
   chair.position.set(0, 0, 0);
   scene.add(chair);
+  saveInitialState(chair);
   chair.traverse((child) => {
     if ((child as Mesh).isMesh) {
       const mesh = child as Mesh;
@@ -149,6 +228,7 @@ gltfLoader.load("/models/classic_round_side_table.glb", (gltf) => {
   table.scale.set(1, 1, 1);
   table.position.set(-1, 0, 0);
   scene.add(table);
+  saveInitialState(table);
   table.traverse((child) => {
     if ((child as Mesh).isMesh) {
       const mesh = child as Mesh;
@@ -165,6 +245,7 @@ gltfLoader.load("/models/ikea.glb", (gltf) => {
   dresser.scale.set(1, 1, 1);
   dresser.position.set(-1.0, 0, -1.0);
   scene.add(dresser);
+  saveInitialState(dresser);
   dresser.traverse((child) => {
     if ((child as Mesh).isMesh) {
       const mesh = child as Mesh;
@@ -287,6 +368,11 @@ window.addEventListener("keydown", (event: KeyboardEvent) => {
     case "q": // Shrink in the x-direction
       shrinkModelX(selectedObject);
       break;
+    case "r": // Reset
+      if (chair) resetObject(chair);
+      if (table) resetObject(table);
+      if (dresser) resetObject(dresser);
+      break;
     default:
       break;
   }
@@ -338,11 +424,11 @@ function shrinkModelX(object: Group) {
   });
 }
 
-// Help Overlay Logic
+// Help overlay logic
 const helpOverlay = document.getElementById("help-overlay");
 const helpText = document.getElementById("help-text");
 
-// Toggle Help Menu on "H" Key Press
+// Toggle help menu on 'H' press
 window.addEventListener("keydown", (event: KeyboardEvent) => {
   if (event.key.toLowerCase() === "h" && helpOverlay && helpText) {
     const isHelpVisible = helpOverlay.style.display === "block";
@@ -352,6 +438,20 @@ window.addEventListener("keydown", (event: KeyboardEvent) => {
     helpText.style.display = isHelpVisible ? "block" : "none";
   }
 });
+
+// Screnshoot functionality
+const screenshotButton = document.getElementById("screenshot-btn");
+if (screenshotButton) {
+  screenshotButton.addEventListener("click", () => {
+    renderer.render(scene, camera);
+    const screenshotDataURL = renderer.domElement.toDataURL("image/png");
+    const link = document.createElement("a");
+    link.href = screenshotDataURL;
+    link.download = "IKEA moment.png";
+    link.click();
+    console.log("IKEA moment saved.");
+  });
+}
 
 // Render Loop
 function animate() {
