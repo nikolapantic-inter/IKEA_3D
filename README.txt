@@ -17,9 +17,9 @@ Display keyboard controls and usage instructions with a help menu.
 Installation
 
 Clone the repository:
-git clone https://github.com/your-username/ikea-3d.git
+git clone git@github.com:pgaonamu/IKEA_3D.git
 Navigate to the project folder:
-cd ikea-3d
+cd yourproject
 Install dependencies:
 npm install
 Run the development server:
