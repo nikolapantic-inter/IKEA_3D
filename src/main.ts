@@ -5,7 +5,14 @@ import {
   Color,
   AmbientLight,
   DirectionalLight,
-  EquirectangularReflectionMapping
+  EquirectangularReflectionMapping,
+  ACESFilmicToneMapping,
+  LoadingManager,
+  Mesh,
+  MeshStandardMaterial,
+  Group,
+  Raycaster,
+  Vector2,
 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
@@ -22,11 +29,13 @@ const camera = new PerspectiveCamera(
   0.1,
   1000
 );
-camera.position.set(0, 1.0, 4.5); 
+camera.position.set(0, 1.0, 4.5);
 
 // Initialize Renderer
 const renderer = new WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.toneMapping = ACESFilmicToneMapping; // Apply tone mapping
+renderer.toneMappingExposure = 0.5;
 document.body.appendChild(renderer.domElement);
 
 // Initialize OrbitControls
@@ -54,24 +63,33 @@ directionalLight.position.set(5, 10, 7.5);
 directionalLight.castShadow = true;
 scene.add(directionalLight);
 
-//HDR
-const rgbeLoader = new RGBELoader();
-rgbeLoader.load(
-  "/textures/pine_attic_2k.hdr", 
-  (texture) => {
-    texture.mapping = EquirectangularReflectionMapping;
-    scene.environment = texture;
-    scene.background = texture;  
-  }
-);
+// Loading Manager
+const loadingManager = new LoadingManager();
+loadingManager.onLoad = () => {
+  console.log("All assets loaded.");
+  animate();
+};
 
-// GLTF Loader
-const gltfLoader = new GLTFLoader();
+// GLTF and RGBE Loader
+const rgbeLoader = new RGBELoader(loadingManager);
+const gltfLoader = new GLTFLoader(loadingManager);
+
+//HDR Lights
+rgbeLoader.load("/textures/pine_attic_2k.hdr", (texture) => {
+  texture.mapping = EquirectangularReflectionMapping;
+  scene.environment = texture;
+  scene.background = texture;
+});
 
 let chair: Group | null = null;
 let table: Group | null = null;
 let dresser: Group | null = null;
 let background: Group | null = null;
+
+// Map to Original Colors
+const originalColorsMap = new Map<Mesh, Color>();
+const highlightColor = new Color(0x83f52c);
+let selectedObject: Group | null = null;
 
 // Load Chair
 gltfLoader.load("/models/chair.glb", (gltf) => {
@@ -79,6 +97,14 @@ gltfLoader.load("/models/chair.glb", (gltf) => {
   chair.scale.set(1, 1, 1);
   chair.position.set(0, 0, 0);
   scene.add(chair);
+  chair.traverse((child) => {
+    if ((child as Mesh).isMesh) {
+      const mesh = child as Mesh;
+      if (mesh.material instanceof MeshStandardMaterial) {
+        originalColorsMap.set(mesh, mesh.material.color.clone());
+      }
+    }
+  });
 });
 
 // Load Table
@@ -87,6 +113,14 @@ gltfLoader.load("/models/classic_round_side_table.glb", (gltf) => {
   table.scale.set(1, 1, 1);
   table.position.set(-1, 0, 0);
   scene.add(table);
+  table.traverse((child) => {
+    if ((child as Mesh).isMesh) {
+      const mesh = child as Mesh;
+      if (mesh.material instanceof MeshStandardMaterial) {
+        originalColorsMap.set(mesh, mesh.material.color.clone());
+      }
+    }
+  });
 });
 
 // Load Ikea Hemnes Dresser
@@ -95,6 +129,14 @@ gltfLoader.load("/models/ikea.glb", (gltf) => {
   dresser.scale.set(1, 1, 1);
   dresser.position.set(-1.0, 0, -1.0);
   scene.add(dresser);
+  dresser.traverse((child) => {
+    if ((child as Mesh).isMesh) {
+      const mesh = child as Mesh;
+      if (mesh.material instanceof MeshStandardMaterial) {
+        originalColorsMap.set(mesh, mesh.material.color.clone());
+      }
+    }
+  });
 });
 
 // Load Background
@@ -104,6 +146,68 @@ gltfLoader.load("/models/background.glb", (gltf) => {
   background.rotation.y = Math.PI / 2;
   scene.add(background);
 });
+
+// Raycaster and Mouse Vector
+const raycaster = new Raycaster();
+const mouse = new Vector2();
+
+// Handle Mouse Click
+window.addEventListener("click", (event: MouseEvent) => {
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+
+  const intersectsChair = chair ? raycaster.intersectObject(chair, true) : [];
+  const intersectsTable = table ? raycaster.intersectObject(table, true) : [];
+  const intersectsDresser = dresser
+    ? raycaster.intersectObject(dresser, true)
+    : [];
+
+  if (intersectsChair.length > 0 && chair) {
+    selectObject(chair);
+  } else if (intersectsTable.length > 0 && table) {
+    selectObject(table);
+  } else if (intersectsDresser.length > 0 && dresser) {
+    selectObject(dresser);
+  } else {
+    deselectAll();
+  }
+});
+
+// Selection Functions
+function selectObject(object: Group) {
+  if (selectedObject === object) {
+    deselectObject(object);
+    return;
+  }
+  if (selectedObject) deselectObject(selectedObject);
+  object.traverse((child) => {
+    if ((child as Mesh).isMesh) {
+      const mesh = child as Mesh;
+      if (mesh.material instanceof MeshStandardMaterial) {
+        mesh.material.color.set(highlightColor);
+      }
+    }
+  });
+  selectedObject = object;
+}
+
+function deselectObject(object: Group) {
+  object.traverse((child) => {
+    if ((child as Mesh).isMesh) {
+      const mesh = child as Mesh;
+      if (mesh.material instanceof MeshStandardMaterial) {
+        const originalColor = originalColorsMap.get(mesh);
+        if (originalColor) mesh.material.color.copy(originalColor);
+      }
+    }
+  });
+  selectedObject = null;
+}
+
+function deselectAll() {
+  if (selectedObject) deselectObject(selectedObject);
+}
 
 // Render Loop
 function animate() {
