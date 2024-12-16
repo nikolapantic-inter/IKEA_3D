@@ -3,8 +3,6 @@ import {
   PerspectiveCamera,
   WebGLRenderer,
   Color,
-  AmbientLight,
-  DirectionalLight,
   EquirectangularReflectionMapping,
   ACESFilmicToneMapping,
   LoadingManager,
@@ -14,14 +12,14 @@ import {
   Raycaster,
   Vector2,
   Vector3,
-  Audio,
-  AudioListener,
-  AudioLoader,
   Euler,
 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { setupLights } from "./illumination";
+import { setupAudio } from "./audio";
+import { setUpControls , setUpWindow } from "./core";
 
 // Initialize scene
 const scene = new Scene();
@@ -43,62 +41,18 @@ renderer.toneMapping = ACESFilmicToneMapping; // Apply tone mapping
 renderer.toneMappingExposure = 0.5;
 document.body.appendChild(renderer.domElement);
 
-// Create an AudioListener and add it to the camera
-const listener = new AudioListener();
-camera.add(listener);
-const sound = new Audio(listener);
+// Setup audio and attach it to the camera
+setupAudio(camera);
 
-// Load the audio file and set it as the audio source
-const audioLoader = new AudioLoader();
-audioLoader.load(
-  "/sounds/jazz.mp3",
-  (buffer) => {
-    sound.setBuffer(buffer);
-    sound.setLoop(true);
-    sound.setVolume(0.4);
-  },
-  undefined,
-  // onError callback
-  function (err) {
-    console.log("Error:", err);
-  }
-);
-
-// Audio starts after user interaction
-
-const playAudio = () => {
-  if (!sound.isPlaying) {
-    sound.play();
-    console.log("Audio started");
-  }
-};
-
-document.body.addEventListener("click", playAudio, { once: true });
-
-// Initialize OrbitControls
+// Initialize and set up orbit controls
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.enableZoom = true;
-controls.enablePan = true;
-controls.target.set(0, 1, 0);
-controls.minPolarAngle = Math.PI / 2.4;
-controls.maxPolarAngle = Math.PI / 2.0;
+setUpControls(controls);
 
-//  Window resize
-window.addEventListener("resize", () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-});
+// Setup Window resize
+setUpWindow(camera, renderer);
 
-// Lights
-const ambientLight = new AmbientLight(0xffffff, 0.2);
-scene.add(ambientLight);
-
-const directionalLight = new DirectionalLight(0xffffff, 0.5);
-directionalLight.position.set(5, 10, 7.5);
-directionalLight.castShadow = true;
-scene.add(directionalLight);
+// Setup lights
+setupLights(scene);
 
 // Loading manager
 const loadingManager = new LoadingManager();
@@ -169,6 +123,7 @@ if (hdrToggleButton) {
     updateButtonStyle(); // Update on toggle
   });
 }
+// Declare model variables 
 
 let chair: Group | null = null;
 let table: Group | null = null;
@@ -182,7 +137,7 @@ const initialStates = new Map<
 >();
 
 // Save initial states
-function saveInitialState(object: Group) {
+export function saveInitialState(object: Group) {
   initialStates.set(object, {
     position: object.position.clone(),
     rotation: object.rotation.clone(),
