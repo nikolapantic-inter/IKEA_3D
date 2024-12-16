@@ -1,5 +1,6 @@
 import { Scene, PerspectiveCamera, WebGLRenderer, Color, AmbientLight} from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 
 // Initialize Scene
 const scene = new Scene();
@@ -18,6 +19,13 @@ camera.position.set(0, 1.0, 4.5); // Camera position
 const renderer = new WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement); 
+
+// Initialize OrbitControls
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.enableZoom = false;
+controls.enablePan = false;
+controls.target.set(0, 1, 0);
 
 // Lights
 const ambientLight = new AmbientLight(0xffffff, 0.2);
@@ -67,6 +75,7 @@ gltfLoader.load("/models/background.glb", (gltf) => {
 // Render Loop
 function animate() {
   requestAnimationFrame(animate);
+  controls.update();
   renderer.render(scene, camera); // Render the scene
 }
 animate();
