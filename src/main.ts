@@ -247,49 +247,111 @@ function deselectAll() {
 
 // Move with Keyboard
 window.addEventListener("keydown", (event: KeyboardEvent) => {
-    if (!selectedObject) return;
-  
-    const step = 0.1; 
-    const rotateStep = (Math.PI / 180) * 5; //5 Radians
-  
-    // Calculate camera forward 
-    const forward = new Vector3();
-    camera.getWorldDirection(forward); 
-    forward.y = 0;
-    forward.normalize();
-  
-    const right = new Vector3();
-    right.crossVectors(forward, camera.up).normalize(); // Right vector
-  
-    // Move selected object based on key press relative to the camera
-    switch (event.key.toLowerCase()) {
-      case "w": 
-        selectedObject.position.add(forward.multiplyScalar(step));
-        break;
-      case "s": 
-        selectedObject.position.add(forward.multiplyScalar(-step));
-        break;
-      case "a": 
-        selectedObject.position.add(right.multiplyScalar(-step));
-        break;
-      case "d": 
-        selectedObject.position.add(right.multiplyScalar(step));
-        break;
-      case "arrowleft": 
-        selectedObject.rotation.y -= rotateStep;
-        break;
-      case "arrowright": 
-        selectedObject.rotation.y += rotateStep;
-        break;
-      default:
-        break;
-    }
-  
-    // Constrain movement to the horizontal plane 
-    if (selectedObject) {
-      selectedObject.position.y = 0;
+  if (!selectedObject) return;
+
+  const step = 0.1;
+  const rotateStep = (Math.PI / 180) * 5; //5 Radians
+
+  // Calculate camera forward
+  const forward = new Vector3();
+  camera.getWorldDirection(forward);
+  forward.y = 0;
+  forward.normalize();
+
+  const right = new Vector3();
+  right.crossVectors(forward, camera.up).normalize(); // Right vector
+
+  // Move selected object based on key press relative to the camera
+  switch (event.key.toLowerCase()) {
+    case "w":
+      selectedObject.position.add(forward.multiplyScalar(step));
+      break;
+    case "s":
+      selectedObject.position.add(forward.multiplyScalar(-step));
+      break;
+    case "a":
+      selectedObject.position.add(right.multiplyScalar(-step));
+      break;
+    case "d":
+      selectedObject.position.add(right.multiplyScalar(step));
+      break;
+    case "arrowleft":
+      selectedObject.rotation.y -= rotateStep;
+      break;
+    case "arrowright":
+      selectedObject.rotation.y += rotateStep;
+      break;
+    case "e": // Extend in the x-direction
+      extendModelX(selectedObject);
+      break;
+    case "q": // Shrink in the x-direction
+      shrinkModelX(selectedObject);
+      break;
+    default:
+      break;
+  }
+
+  // Constrain movement to the horizontal plane
+  if (selectedObject) {
+    selectedObject.position.y = 0;
+  }
+});
+
+// Escale (extent) object in X
+function extendModelX(object: Group) {
+  object.traverse((child) => {
+    if ((child as Mesh).isMesh) {
+      const mesh = child as Mesh;
+      if (mesh.geometry) {
+        const geometry = mesh.geometry;
+        const positionAttribute = geometry.attributes.position;
+
+        for (let i = 0; i < positionAttribute.count; i++) {
+          const x = positionAttribute.getX(i);
+          positionAttribute.setX(i, x * 1.2);
+        }
+
+        positionAttribute.needsUpdate = true;
+        geometry.computeBoundingBox();
+        geometry.computeBoundingSphere();
+      }
     }
   });
+}
+
+// Escale (shrink) object in X
+function shrinkModelX(object: Group) {
+  object.traverse((child) => {
+    if ((child as Mesh).isMesh) {
+      const mesh = child as Mesh;
+      if (mesh.geometry) {
+        const positionAttribute = mesh.geometry.attributes.position;
+        for (let i = 0; i < positionAttribute.count; i++) {
+          const x = positionAttribute.getX(i);
+          positionAttribute.setX(i, x * 0.8);
+        }
+        positionAttribute.needsUpdate = true;
+        mesh.geometry.computeBoundingBox();
+        mesh.geometry.computeBoundingSphere();
+      }
+    }
+  });
+}
+
+// Help Overlay Logic
+const helpOverlay = document.getElementById("help-overlay");
+const helpText = document.getElementById("help-text");
+
+// Toggle Help Menu on "H" Key Press
+window.addEventListener("keydown", (event: KeyboardEvent) => {
+  if (event.key.toLowerCase() === "h" && helpOverlay && helpText) {
+    const isHelpVisible = helpOverlay.style.display === "block";
+
+    // Toggle visibility
+    helpOverlay.style.display = isHelpVisible ? "none" : "block";
+    helpText.style.display = isHelpVisible ? "block" : "none";
+  }
+});
 
 // Render Loop
 function animate() {
