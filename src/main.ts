@@ -18,7 +18,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { setupLights } from "./illumination";
-import { setupAudio } from "./audio";
+import { setupAudio , sound } from "./audio";
 import { setUpControls , setUpWindow } from "./core";
 
 // Initialize scene
@@ -43,6 +43,17 @@ document.body.appendChild(renderer.domElement);
 
 // Setup audio and attach it to the camera
 setupAudio(camera);
+
+// Ensure audio starts after user interaction
+const startAudio = () => {
+  if (sound && !sound.isPlaying) {
+    sound.play();
+    console.log("Audio started");
+  }
+};
+
+// Add a click event listener to play audio
+document.body.addEventListener("click", startAudio, { once: true });
 
 // Initialize and set up orbit controls
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -198,7 +209,7 @@ gltfLoader.load("/models/classic_round_side_table.glb", (gltf) => {
 gltfLoader.load("/models/ikea.glb", (gltf) => {
   dresser = gltf.scene;
   dresser.scale.set(1, 1, 1);
-  dresser.position.set(-1.0, 0, -1.0);
+  dresser.position.set(-3.0, 0, -1.0);
   scene.add(dresser);
   saveInitialState(dresser);
   dresser.traverse((child) => {

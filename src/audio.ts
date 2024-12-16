@@ -1,10 +1,14 @@
 import { Audio, AudioListener, AudioLoader, PerspectiveCamera } from "three";
 
-export function setupAudio(camera : PerspectiveCamera) : void {
+let sound: Audio;
+
+export function setupAudio(camera: PerspectiveCamera): void {
   // Create an AudioListener and add it to the camera
   const listener = new AudioListener();
   camera.add(listener);
-  const sound = new Audio(listener);
+
+  // Initialize sound
+  sound = new Audio(listener);
 
   // Load the audio file and set it as the audio source
   const audioLoader = new AudioLoader();
@@ -14,14 +18,15 @@ export function setupAudio(camera : PerspectiveCamera) : void {
       sound.setBuffer(buffer);
       sound.setLoop(true);
       sound.setVolume(0.4);
-      sound.play();
+      console.log("Audio loaded");
     },
     undefined,
     // onError callback
     function (err) {
-      console.log("Error loading audio:", err);
+      console.log("Error:", err);
     }
   );
 }
 
-
+// Export the sound instance
+export { sound };
