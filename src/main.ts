@@ -4,10 +4,12 @@ import {
   WebGLRenderer,
   Color,
   AmbientLight,
-  DirectionalLight
+  DirectionalLight,
+  EquirectangularReflectionMapping
 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 
 // Initialize Scene
 const scene = new Scene();
@@ -16,11 +18,11 @@ scene.background = new Color(0xdddddd);
 // Initialize Camera
 const camera = new PerspectiveCamera(
   40,
-  window.innerWidth / window.innerHeight, // Aspect ratio
+  window.innerWidth / window.innerHeight,
   0.1,
   1000
 );
-camera.position.set(0, 1.0, 4.5); // Camera position
+camera.position.set(0, 1.0, 4.5); 
 
 // Initialize Renderer
 const renderer = new WebGLRenderer({ antialias: true });
@@ -30,8 +32,8 @@ document.body.appendChild(renderer.domElement);
 // Initialize OrbitControls
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
-controls.enableZoom = false;
-controls.enablePan = false;
+controls.enableZoom = true;
+controls.enablePan = true;
 controls.target.set(0, 1, 0);
 controls.minPolarAngle = Math.PI / 2.4;
 controls.maxPolarAngle = Math.PI / 2.0;
@@ -51,6 +53,17 @@ const directionalLight = new DirectionalLight(0xffffff, 0.5);
 directionalLight.position.set(5, 10, 7.5);
 directionalLight.castShadow = true;
 scene.add(directionalLight);
+
+//HDR
+const rgbeLoader = new RGBELoader();
+rgbeLoader.load(
+  "/textures/pine_attic_2k.hdr", 
+  (texture) => {
+    texture.mapping = EquirectangularReflectionMapping;
+    scene.environment = texture;
+    scene.background = texture;  
+  }
+);
 
 // GLTF Loader
 const gltfLoader = new GLTFLoader();
